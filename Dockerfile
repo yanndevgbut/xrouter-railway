@@ -69,6 +69,17 @@ COPY --from=builder /app/node_modules/node-machine-id ./node_modules/node-machin
 COPY --from=builder /app/node_modules/uuid ./node_modules/uuid
 COPY --from=builder /app/node_modules/undici ./node_modules/undici
 COPY --from=builder /app/node_modules/confbox ./node_modules/confbox
+# custom-server.js loads src/dashboardGuard.js through a raw dynamic import, outside
+# the Next bundle. The guard pulls in src/lib/auth/dashboardSession.js, which imports
+# jose and bcryptjs at runtime; webpack inlines both into the route chunks, so output
+# tracing never places them in .next/standalone. Without these copies the guard throws
+# MODULE_NOT_FOUND and every request fails closed with 503 "Auth guard unavailable".
+# Same belt-and-braces list the CLI packaging uses (cli/scripts/build-cli.js).
+COPY --from=builder /app/node_modules/jose ./node_modules/jose
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
+# Fail the build instead of shipping an image whose auth guard cannot load.
+RUN node --input-type=module -e "await import('jose'); await import('bcryptjs'); console.log('[build] auth guard deps OK')"
 
 RUN mkdir -p /app/data && chown -R node:node /app && \
   mkdir -p /app/data-home && chown node:node /app/data-home && \

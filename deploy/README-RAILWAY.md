@@ -128,6 +128,19 @@ dan variable `PORT=20128` ada.
 lalu login. Setelah login pertama, ganti password lewat dashboard (nilai
 `INITIAL_PASSWORD` tidak lagi dipakai).
 
+**`{"error":"Auth guard unavailable"}` (HTTP 503)**
+Guard di `custom-server.js` gagal meng-import `src/dashboardGuard.js`. Cek log:
+
+```bash
+railway logs -s xrouter -n 200 | grep -A10 '\[AuthGuard\]'
+```
+
+- `Cannot find package 'jose'` / `'bcryptjs'` → paket runtime hilang dari image. `Dockerfile`
+  sudah menyalin keduanya; kalau muncul lagi setelah upgrade dependency, tambahkan ke daftar
+  `COPY --from=builder /app/node_modules/...` (bandingkan dengan `cli/scripts/build-cli.js`).
+- `guard unavailable — FAILING CLOSED (src/ missing?)` → folder `src/` tidak ada di `/app`.
+  Pastikan Railway memakai `Dockerfile` di root repo, bukan Nixpacks.
+
 **Provider tertentu gagal connect (`fetch failed`)**
 Railway punya isu route IPv6 untuk sebagian host. `NODE_OPTIONS` sudah memakai
 `--dns-result-order=ipv4first`; kalau masih gagal, cek log service.
